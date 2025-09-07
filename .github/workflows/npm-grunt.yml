@@ -1,0 +1,42 @@
+name: Android Build & Upload
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Decode Keystore
+        run: |
+          mkdir -p $HOME/.gsp
+          echo "$GSP_KEYSTORE_BASE64" | base64 --decode > $HOME/.gsp/release.keystore
+        shell: bash
+
+      - name: Build Android AAB
+        uses: game-ci/unity-builder@v2
+        with:
+          unityVersion: 2022.3.0f1
+          targetPlatform: Android
+          androidAppBundle: true
+          buildName: GlasgowStreetPursuit
+          projectPath: .
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          ANDROID_KEYSTORE_NAME: release.keystore
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.GSP_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASS: ${{ secrets.GSP_KEYSTORE_PASSWORD }}
+          ANDROID_KEYALIAS_NAME: ${{ secrets.GSP_KEY_ALIAS }}
+          ANDROID_KEYALIAS_PASS: ${{ secrets.GSP_KEY_PASSWORD }}
+
+      - name: Upload to Google Play (Internal Track)
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_JSON_KEY }}
+          packageName: com.yourcompany.gsp
+          releaseFile: build/Android/*.aab
+          track: internal
